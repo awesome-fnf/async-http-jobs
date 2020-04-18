@@ -1,0 +1,20 @@
+version: v1beta1
+type: flow
+steps:
+  - type: task
+    name: DoWork # 需要执行的任务逻辑
+    resourceArn: !Ref DemoFCService/DoWork
+    inputMappings:
+      - target: input
+        source: $input
+    retry:
+      - errors:
+        - FC.ResourceThrottled
+        - FC.ResourceExhausted
+        - FC.InternalServerError
+        - FC.Unknown
+        - FnF.TaskTimeout
+        intervalSeconds: 1
+        maxAttempts: 5
+        multiplier: 2
+        maxIntervalSeconds: 10

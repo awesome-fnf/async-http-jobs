@@ -1,0 +1,83 @@
+ROSTemplateFormatVersion: '2015-09-01'
+Transform: 'Aliyun::Serverless-2018-04-03'
+Resources:
+  AsyncWorkflow:
+    Type: 'Aliyun::Serverless::Flow'
+    Properties:
+      Description: 'Starts and tracks a FC function invocation'
+      Policies:
+        - AliyunFCInvocationAccess
+      DefinitionUri: flows/async_work.flow.yml
+  DemoFCService:
+    Type: 'Aliyun::Serverless::Service'
+    Properties:
+      Policies:
+        - AliyunFnFFullAccess
+    HttpAPI:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 60
+        MemorySize: 256
+        CodeUri: functions/HttpAPI
+      Events:
+        http-trigger: # trigger name
+          Type: HTTP # http trigger
+          Properties:
+              AuthType: ANONYMOUS
+              Methods: ['GET', 'POST']
+    DoWork:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 600
+        MemorySize: 512
+        CodeUri: functions/DoWork
+Outputs:
+  flowName:
+    Value: 
+      'Fn::GetAtt':
+        - 'AsyncWorkflow'
+        - 'Name'
+  startAsyncHTTPJobURL:
+    Value:
+      Fn::Replace:
+        - <serviceName>:
+            'Fn::GetAtt':
+              - DemoFCService
+              - ServiceName
+          <functionName>:
+            'Fn::GetAtt':
+              - DemoFCServiceHttpAPI
+              - FunctionName
+          <flowName>:
+            'Fn::GetAtt':
+              - AsyncWorkflow
+              - Name
+          <accountID>:
+            Ref: ALIYUN::TenantId
+          <region>:
+            Ref: ALIYUN::Region
+        - curl -v -X POST 'https://<accountID>.<region>.fc.aliyuncs.com/2016-08-15/proxy/<serviceName>/<functionName>/start?flowName=<flowName>'
+  describeAsyncHTTPJobURL:
+    Value:
+      Fn::Replace:
+        - <serviceName>:
+            'Fn::GetAtt':
+              - DemoFCService
+              - ServiceName
+          <functionName>:
+            'Fn::GetAtt':
+              - DemoFCServiceHttpAPI
+              - FunctionName
+          <flowName>:
+            'Fn::GetAtt':
+              - AsyncWorkflow
+              - Name
+          <accountID>:
+            Ref: ALIYUN::TenantId
+          <region>:
+            Ref: ALIYUN::Region
+        - curl -v -X GET 'https://<accountID>.<region>.fc.aliyuncs.com/2016-08-15/proxy/<serviceName>/<functionName>/describe?flowName=<flowName>&executionName=<replace-with-execution-name>'
